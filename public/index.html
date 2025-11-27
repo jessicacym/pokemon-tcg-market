@@ -1,0 +1,2823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon TCG Card Trade Market</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        .search-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .search-box input, .search-box select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 150px;
+        }
+        .search-box button {
+            padding: 12px 30px;
+            background: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .search-box button:hover {
+            background: #0056b3;
+        }
+        .clear-cache-btn {
+            padding: 8px 16px;
+            background: #6c757d;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        .clear-cache-btn:hover {
+            background: #5a6268;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .card-item {
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+        .card-item:hover { transform: translateY(-5px); }
+        .card-item img { width: 100%; padding: 10px; }
+        .card-info { padding: 15px; }
+        .card-name { font-weight: bold; font-size: 16px; color: #333; }
+        .card-set { color: #666; font-size: 12px; margin: 5px 0; }
+        .card-prices {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        .price-label { font-size: 12px; color: #888; }
+        .price-value { font-weight: bold; color: #e74c3c; }
+        .loading, .no-results {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .pagination button {
+            padding: 10px 20px;
+            background: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .pagination button:disabled { opacity: 0.5; }
+        .total-info {
+            text-align: center;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            overflow: auto;
+        }
+        .modal.show { display: flex; align-items: center; justify-content: center; }
+        .modal-content {
+            background: #fff;
+            border-radius: 8px;
+            max-width: 1200px;
+            width: 95%;
+            max-height: 95vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .modal-header {
+            padding: 15px 25px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .close-btn {
+            font-size: 28px;
+            font-weight: normal;
+            color: #666;
+            cursor: pointer;
+            border: none;
+            background: none;
+            line-height: 1;
+        }
+        .close-btn:hover { color: #333; }
+        .modal-body {
+            padding: 25px;
+        }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 25px;
+            margin-bottom: 20px;
+        }
+        .detail-image {
+            text-align: center;
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .detail-image img {
+            width: 100%;
+            max-width: 350px;
+            border-radius: 4px;
+        }
+        .product-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        .product-details h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .detail-row {
+            display: flex;
+            margin: 6px 0;
+            font-size: 13px;
+        }
+        .detail-label {
+            color: #333;
+            font-weight: 600;
+            margin-right: 8px;
+            min-width: 90px;
+        }
+        .detail-value {
+            color: #666;
+        }
+        .price-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .price-info {
+            flex: 1;
+        }
+        .condition-badge {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .main-price {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .shipping-info {
+            font-size: 12px;
+            color: #666;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .add-to-cart-btn, .checkout-btn, .add-to-favorites-btn {
+            padding: 12px 30px;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+        }
+        .add-to-cart-btn {
+            background: #0053a0;
+        }
+        .add-to-cart-btn:hover {
+            background: #003d7a;
+        }
+        .checkout-btn {
+            background: #f59e0b;
+        }
+        .checkout-btn:hover {
+            background: #d97706;
+        }
+        .add-to-favorites-btn {
+            background: #e11d48;
+            flex-basis: 100%;
+        }
+        .add-to-favorites-btn:hover {
+            background: #be123c;
+        }
+        .add-to-favorites-btn.active {
+            background: #be123c;
+        }
+        .comparison-section {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .comparison-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .comparison-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .comparison-item:last-child {
+            border-bottom: none;
+        }
+        .price-points {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .price-points-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .price-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+        .stat-label {
+            color: #666;
+        }
+        .stat-value {
+            font-weight: 600;
+            color: #333;
+        }
+        .snapshot-section {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .snapshot-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .snapshot-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .snapshot-item {
+            font-size: 12px;
+        }
+        .snapshot-label {
+            color: #666;
+            margin-bottom: 3px;
+        }
+        .snapshot-value {
+            font-weight: 600;
+            color: #333;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin: 25px 0 15px 0;
+        }
+        .sales-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        .sales-table th {
+            background: #f8f9fa;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e0e0e0;
+            color: #555;
+        }
+        .sales-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .sales-table tr:hover {
+            background: #f9f9f9;
+        }
+        .time-range-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .time-btn {
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            background: #f5f5f5;
+            color: #666;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .time-btn:hover {
+            background: #e8e8e8;
+        }
+        .time-btn.active {
+            background: #007bff;
+            color: #fff;
+            border-color: #007bff;
+        }
+        .chart-container {
+            position: relative;
+            height: 350px;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 20px;
+        }
+        /* Shopping Cart Styles */
+        .cart-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+        .cart-main {
+            background: #fff;
+        }
+        .cart-header {
+            font-size: 28px;
+            font-weight: 400;
+            margin-bottom: 20px;
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .package-section {
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .package-header {
+            background: #f0f2f2;
+            padding: 15px 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .seller-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #007185;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .cart-item {
+            display: grid;
+            grid-template-columns: 180px 1fr 180px;
+            gap: 20px;
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .cart-item-image img {
+            width: 100%;
+            border-radius: 4px;
+        }
+        .cart-item-details {
+            flex: 1;
+        }
+        .cart-item-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #007185;
+            margin-bottom: 8px;
+        }
+        .cart-item-meta {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .cart-item-condition {
+            font-size: 13px;
+            color: #007600;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .cart-item-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .qty-selector {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f0f2f2;
+            font-size: 13px;
+        }
+        .cart-action-link {
+            color: #007185;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .cart-action-link:hover {
+            text-decoration: underline;
+            color: #c7511f;
+        }
+        .cart-item-price {
+            text-align: right;
+        }
+        .item-price {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0F1111;
+        }
+        .package-subtotal {
+            padding: 15px 20px;
+            text-align: right;
+            border-top: 1px solid #ddd;
+        }
+        .subtotal-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 80px;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .subtotal-label {
+            color: #565959;
+        }
+        .subtotal-value {
+            font-weight: 600;
+            min-width: 80px;
+            text-align: right;
+        }
+        .shipping-options {
+            padding: 15px 20px;
+            background: #f7f8f8;
+            border-top: 1px solid #ddd;
+        }
+        .shipping-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+        }
+        .shipping-option:hover {
+            border-color: #007185;
+        }
+        .shipping-option input[type="radio"] {
+            margin: 0;
+        }
+        .shipping-info-text {
+            flex: 1;
+        }
+        .shipping-price {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .shipping-time {
+            font-size: 12px;
+            color: #666;
+        }
+        .cart-summary {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+        .cart-summary-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .summary-total {
+            font-size: 18px;
+            font-weight: 600;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            margin-top: 10px;
+        }
+        .summary-note {
+            font-size: 12px;
+            color: #565959;
+            margin-top: 5px;
+        }
+        .checkout-button {
+            width: 100%;
+            padding: 12px;
+            background: #ffd814;
+            border: 1px solid #fcd200;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 15px 0;
+        }
+        .checkout-button:hover {
+            background: #f7ca00;
+        }
+        .paypal-button {
+            width: 100%;
+            padding: 12px;
+            background: #0070ba;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .paypal-button:hover {
+            background: #005ea6;
+        }
+        .cart-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #f59e0b;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 999;
+        }
+        .cart-badge:hover {
+            background: #d97706;
+        }
+        .favorites-badge {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: #e11d48;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 999;
+        }
+        .favorites-badge:hover {
+            background: #be123c;
+        }
+        .price-tracking-badge {
+            position: fixed;
+            top: 120px;
+            right: 20px;
+            background: #059669;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 999;
+        }
+        .price-tracking-badge:hover {
+            background: #047857;
+        }
+        .set-alert-btn {
+            padding: 12px 30px;
+            background: #059669;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+        }
+        .set-alert-btn:hover {
+            background: #047857;
+        }
+        /* Sign In Modal Styles */
+        .signin-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .signin-modal.show {
+            display: flex;
+        }
+        .signin-content {
+            background: #fff;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 90%;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .signin-logo {
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .signin-title {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 20px;
+            color: #0F1111;
+        }
+        .signin-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .signin-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0F1111;
+            margin-bottom: 5px;
+        }
+        .signin-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #a6a6a6;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .signin-input:focus {
+            outline: none;
+            border-color: #e77600;
+            box-shadow: 0 0 3px 2px rgba(228,121,17,0.5);
+        }
+        .signin-button {
+            width: 100%;
+            padding: 10px;
+            background: #ffd814;
+            border: 1px solid #fcd200;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .signin-button:hover {
+            background: #f7ca00;
+        }
+        .signin-terms {
+            font-size: 12px;
+            color: #565959;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+        .signin-terms a {
+            color: #0066c0;
+            text-decoration: none;
+        }
+        .signin-terms a:hover {
+            color: #c7511f;
+            text-decoration: underline;
+        }
+        .signin-divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .signin-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e7e7e7;
+        }
+        .signin-divider span {
+            background: #fff;
+            padding: 0 10px;
+            position: relative;
+            color: #767676;
+            font-size: 12px;
+        }
+        .create-account-button {
+            width: 100%;
+            padding: 10px;
+            background: #f0f2f2;
+            border: 1px solid #adb1b8;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .create-account-button:hover {
+            background: #e7e9ec;
+        }
+        .signin-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+        .signin-close:hover {
+            color: #333;
+        }
+        /* Review Section Styles */
+        .reviews-section {
+            margin-top: 30px;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 25px;
+        }
+        .reviews-header {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .review-item {
+            border-bottom: 1px solid #e0e0e0;
+            padding: 20px 0;
+        }
+        .review-item:last-child {
+            border-bottom: none;
+        }
+        .review-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .review-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            margin-right: 12px;
+        }
+        .review-user-info {
+            flex: 1;
+        }
+        .review-username {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        .review-date {
+            font-size: 12px;
+            color: #666;
+        }
+        .review-rating {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 8px;
+        }
+        .star {
+            color: #ffa41c;
+            font-size: 16px;
+        }
+        .star.empty {
+            color: #ddd;
+        }
+        .review-badges {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .review-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-strength {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .badge-value {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .review-text {
+            color: #333;
+            line-height: 1.6;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .review-helpful {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 13px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .helpful-btn {
+            background: none;
+            border: 1px solid #ddd;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            transition: all 0.2s;
+        }
+        .helpful-btn:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+        .write-review-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        .write-review-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .review-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .review-textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+        .review-submit-btn {
+            margin-top: 12px;
+            padding: 10px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .review-submit-btn:hover {
+            background: #0056b3;
+        }
+        .rating-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        .rating-selector span {
+            font-size: 14px;
+            color: #666;
+            margin-right: 8px;
+        }
+        .rating-star {
+            font-size: 24px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .rating-star:hover,
+        .rating-star.active {
+            color: #ffa41c;
+        }
+        @media (max-width: 768px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+            .modal-content {
+                width: 98%;
+            }
+            .price-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .action-buttons {
+                flex-direction: column;
+            }
+            .snapshot-grid {
+                grid-template-columns: 1fr;
+            }
+            .sales-table {
+                font-size: 11px;
+            }
+            .sales-table th, .sales-table td {
+                padding: 8px 5px;
+            }
+            .main-price {
+                font-size: 24px;
+            }
+            .cart-container {
+                grid-template-columns: 1fr;
+            }
+            .cart-item {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Shopping Cart Badge -->
+    <div class="cart-badge" onclick="openCart()" id="cartBadge" style="display: none;">
+        🛒 Cart (<span id="cartCount">0</span>)
+    </div>
+
+    <!-- Favorites Badge -->
+    <div class="favorites-badge" onclick="openFavorites()" id="favoritesBadge" style="display: none;">
+        ❤️ Favorites (<span id="favoritesCount">0</span>)
+    </div>
+
+    <!-- Price Tracking Badge -->
+    <div class="price-tracking-badge" onclick="openPriceTracking()" id="priceTrackingBadge" style="display: none;">
+        🔔 Alerts (<span id="alertsCount">0</span>)
+    </div>
+
+    <div class="container" id="mainContainer">
+        <h1>🎴 Pokemon TCG Card Trade Market</h1>
+        <div class="search-box">
+            <input type="text" id="cardName" placeholder="Card name (e.g., Pikachu)">
+            <select id="rarity">
+                <option value="">All Rarities</option>
+                <option value="Common">Common</option>
+                <option value="Uncommon">Uncommon</option>
+                <option value="Rare">Rare</option>
+                <option value="Rare Holo">Rare Holo</option>
+                <option value="Rare Holo V">Rare Holo V</option>
+                <option value="Rare Ultra">Rare Ultra</option>
+            </select>
+            <button onclick="searchCards(1)">🔍 Search</button>
+            <button class="clear-cache-btn" onclick="clearCache()">🗑️ Clear Cache</button>
+        </div>
+        <div id="welcomeMessage" style="text-align: center; color: #666; margin: 15px 0; font-size: 14px;">
+            👋 Welcome! Browse our collection below or search for specific cards
+        </div>
+        <div id="totalInfo" class="total-info"></div>
+        <div id="results" class="cards-grid"></div>
+        <div id="pagination" class="pagination"></div>
+    </div>
+
+    <!-- Card Detail Modal -->
+    <div id="cardModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Card Details</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <!-- Left Column: Card Image & Product Details -->
+                    <div>
+                        <div class="detail-image">
+                            <img id="modalImage" src="" alt="Card Image">
+                        </div>
+                        <div class="product-details">
+                            <h4>Product Details</h4>
+                            <div class="detail-row">
+                                <span class="detail-label">Rarity:</span>
+                                <span class="detail-value" id="modalRarity">N/A</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Number:</span>
+                                <span class="detail-value" id="modalNumber">N/A</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Card Type:</span>
+                                <span class="detail-value" id="modalType">N/A</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Set:</span>
+                                <span class="detail-value" id="modalSet">N/A</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Price & Market Info -->
+                    <div>
+                        <div class="price-header">
+                            <div class="price-info">
+                                <div class="condition-badge">Near Mint Holofoil - Japanese</div>
+                                <div class="main-price" id="mainPrice">$0.00</div>
+                                <div class="shipping-info" style="color: #007600; font-weight: 600;">Free Digital Delivery</div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="add-to-cart-btn" onclick="addToCart()">Add to Cart</button>
+                                <button class="checkout-btn" onclick="openCart()">Check Out</button>
+                                <button class="add-to-favorites-btn" id="favoritesBtn" onclick="toggleFavorite()">❤️ Add to Favorites</button>
+                                <button class="set-alert-btn" onclick="openPriceAlertModal()">🔔 Set Price Alert</button>
+                            </div>
+                        </div>
+
+                        <div class="comparison-section">
+                            <div class="comparison-title">Near Mint Comparison Prices</div>
+                            <div class="comparison-item">
+                                <span>Holofoil:</span>
+                                <span id="holofoilPrice">$0.00</span>
+                            </div>
+                        </div>
+
+                        <div class="price-points">
+                            <div class="price-points-title">Price Points</div>
+                            <div class="price-stat">
+                                <span class="stat-label">Market Price</span>
+                                <span class="stat-value" id="marketPrice">$0.00</span>
+                            </div>
+                            <div class="price-stat">
+                                <span class="stat-label">Most Recent Sale</span>
+                                <span class="stat-value" id="recentSale">$0.00</span>
+                            </div>
+                            <div class="price-stat">
+                                <span class="stat-label">Current Quantity</span>
+                                <span class="stat-value" id="currentQty">0</span>
+                            </div>
+                            <div class="price-stat">
+                                <span class="stat-label">Current Sellers</span>
+                                <span class="stat-value" id="currentSellers">0</span>
+                            </div>
+                        </div>
+
+                        <div class="snapshot-section">
+                            <div class="snapshot-title">3 Month Snapshot</div>
+                            <div class="snapshot-grid">
+                                <div class="snapshot-item">
+                                    <div class="snapshot-label">Low Sale Price:</div>
+                                    <div class="snapshot-value" id="lowSalePrice">$0.00</div>
+                                </div>
+                                <div class="snapshot-item">
+                                    <div class="snapshot-label">High Sale Price:</div>
+                                    <div class="snapshot-value" id="highSalePrice">$0.00</div>
+                                </div>
+                                <div class="snapshot-item">
+                                    <div class="snapshot-label">Total Sold:</div>
+                                    <div class="snapshot-value" id="totalSold">0</div>
+                                </div>
+                                <div class="snapshot-item">
+                                    <div class="snapshot-label">Avg. Daily Sold:</div>
+                                    <div class="snapshot-value" id="avgDailySold">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-title">Market Price History</div>
+                <div class="time-range-buttons">
+                    <button class="time-btn" onclick="changeTimeRange('1m')">1M</button>
+                    <button class="time-btn active" onclick="changeTimeRange('3m')">3M</button>
+                    <button class="time-btn" onclick="changeTimeRange('6m')">6M</button>
+                    <button class="time-btn" onclick="changeTimeRange('1y')">1Y</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+
+                <div class="section-title">2 Listings</div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 10px;">As low as <span id="lowestPrice">$0.00</span></div>
+                <table class="sales-table">
+                    <thead>
+                        <tr>
+                            <th>Sale Price (USD)</th>
+                            <th>Grade</th>
+                            <th># Bids</th>
+                            <th>Date Sold</th>
+                            <th>Listing ID</th>
+                            <th>Title</th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesTableBody">
+                    </tbody>
+                </table>
+
+                <!-- Reviews Section -->
+                <div class="reviews-section">
+                    <div class="reviews-header">💬 Community Reviews - Card Strength & Value</div>
+
+                    <div id="reviewsList">
+                        <!-- Reviews will be dynamically added here -->
+                    </div>
+
+                    <!-- Write Review Section -->
+                    <div class="write-review-section">
+                        <div class="write-review-title">Share Your Thoughts</div>
+
+                        <div class="rating-selector">
+                            <span>Your Rating:</span>
+                            <span class="rating-star" onclick="setRating(1)">★</span>
+                            <span class="rating-star" onclick="setRating(2)">★</span>
+                            <span class="rating-star" onclick="setRating(3)">★</span>
+                            <span class="rating-star" onclick="setRating(4)">★</span>
+                            <span class="rating-star" onclick="setRating(5)">★</span>
+                        </div>
+
+                        <textarea
+                            id="reviewText"
+                            class="review-textarea"
+                            placeholder="Share your thoughts on this card's competitive strength, playability, and value for money. What deck strategies does it fit? Is it worth the price?"
+                        ></textarea>
+
+                        <button class="review-submit-btn" onclick="submitReview()">Post Review</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shopping Cart Page -->
+    <div id="cartPage" style="display: none;">
+        <div class="cart-container">
+            <!-- Main Cart Section -->
+            <div class="cart-main">
+                <div class="cart-header">
+                    Shopping Cart
+                    <button onclick="backToMain()" style="float: right; background: #007185; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">← Back to Search</button>
+                </div>
+
+                <div id="cartItemsContainer">
+                    <!-- Cart items will be dynamically inserted here -->
+                </div>
+
+                <div style="padding: 20px; background: #fff; text-align: center; color: #666;" id="emptyCartMessage">
+                    Your cart is empty. Add some cards to get started!
+                </div>
+            </div>
+
+            <!-- Cart Summary Sidebar -->
+            <div class="cart-summary">
+                <div class="cart-summary-title">Order Summary</div>
+
+                <div class="summary-row">
+                    <span>Subtotal (<span id="summaryItemCount">0</span> items):</span>
+                    <span id="summarySubtotal">$0.00</span>
+                </div>
+
+                <div class="summary-row">
+                    <span>Before Tax:</span>
+                    <span id="summaryBeforeTax">$0.00</span>
+                </div>
+
+                <div class="summary-row">
+                    <span>Estimated Tax:</span>
+                    <span id="summaryTax">$0.00</span>
+                </div>
+
+                <div class="summary-row summary-total">
+                    <span>Order Total:</span>
+                    <span id="summaryTotal" style="color: #B12704;">$0.00</span>
+                </div>
+
+                <div class="summary-note">
+                    * Items may take 3-5 business days to arrive
+                </div>
+
+                <button class="checkout-button" onclick="proceedToCheckout()">Proceed to Checkout</button>
+                <button class="paypal-button" onclick="proceedToCheckout()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.067 8.478c.492.88.556 2.014.3 3.327-.74 3.806-3.276 5.12-6.514 5.12h-.5a.805.805 0 0 0-.794.68l-.04.22-.63 3.993-.032.17a.804.804 0 0 1-.794.679H7.72a.483.483 0 0 1-.477-.558L9.48 7.642a.946.946 0 0 1 .933-.803h5.43c1.27 0 2.27.264 2.97.764.327.235.576.512.754.821z"/>
+                    </svg>
+                    PayPal
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Favorites Page -->
+    <div id="favoritesPage" style="display: none;">
+        <div class="container">
+            <div class="cart-header" style="background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                ❤️ My Favorites
+                <button onclick="backToMainFromFavorites()" style="float: right; background: #007185; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">← Back to Search</button>
+            </div>
+
+            <div id="favoritesContainer" class="cards-grid">
+                <!-- Favorites cards will be dynamically inserted here -->
+            </div>
+
+            <div style="padding: 40px; background: #fff; text-align: center; color: #666; border-radius: 8px;" id="emptyFavoritesMessage">
+                💔 No favorites yet. Start adding cards you love!
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign In Modal -->
+    <div id="signInModal" class="signin-modal">
+        <div class="signin-content">
+            <button class="signin-close" onclick="closeSignIn()">&times;</button>
+
+            <div class="signin-logo">🎴 TCG Shop</div>
+
+            <h2 class="signin-title">Sign in</h2>
+
+            <form class="signin-form" onsubmit="handleSignIn(event)">
+                <div>
+                    <label class="signin-label">Email or mobile phone number</label>
+                    <input type="text" class="signin-input" id="signInEmail" required>
+                </div>
+
+                <div>
+                    <label class="signin-label">Password</label>
+                    <input type="password" class="signin-input" id="signInPassword" required>
+                </div>
+
+                <button type="submit" class="signin-button">Continue</button>
+
+                <div class="signin-terms">
+                    By continuing, you agree to TCG Shop's <a href="#">Conditions of Use</a> and <a href="#">Privacy Notice</a>.
+                </div>
+            </form>
+
+            <div class="signin-divider">
+                <span>New to TCG Shop?</span>
+            </div>
+
+            <button class="create-account-button" onclick="showCreateAccount()">Create your TCG Shop account</button>
+        </div>
+    </div>
+
+    <!-- Price Alert Modal -->
+    <div id="priceAlertModal" class="signin-modal">
+        <div class="signin-content" style="max-width: 500px;">
+            <button class="signin-close" onclick="closePriceAlertModal()">&times;</button>
+
+            <div class="signin-logo">🔔</div>
+            <h2 class="signin-title">Set Price Alert</h2>
+
+            <div style="margin-bottom: 20px; text-align: center;">
+                <img id="alertCardImage" src="" alt="" style="width: 150px; border-radius: 8px; margin-bottom: 10px;">
+                <div id="alertCardName" style="font-weight: 600; font-size: 16px; margin-bottom: 5px;"></div>
+                <div id="alertCurrentPrice" style="color: #666; font-size: 14px;">Current Price: $0.00</div>
+            </div>
+
+            <form class="signin-form" onsubmit="createPriceAlert(event)">
+                <div>
+                    <label class="signin-label">Alert Condition</label>
+                    <select id="alertCondition" class="signin-input" required>
+                        <option value="below">Price drops below</option>
+                        <option value="above">Price rises above</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="signin-label">Target Price ($)</label>
+                    <input type="number" step="0.01" min="0" class="signin-input" id="alertTargetPrice" placeholder="Enter target price" required>
+                </div>
+
+                <button type="submit" class="signin-button" style="background: #059669; border-color: #059669;">Create Alert</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Price Tracking Page -->
+    <div id="priceTrackingPage" style="display: none;">
+        <div class="container">
+            <div class="cart-header" style="background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                🔔 My Price Alerts
+                <button onclick="backToMainFromPriceTracking()" style="float: right; background: #007185; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">← Back to Search</button>
+            </div>
+
+            <div id="alertsContainer" style="display: grid; gap: 20px;">
+                <!-- Price alerts will be dynamically inserted here -->
+            </div>
+
+            <div style="padding: 40px; background: #fff; text-align: center; color: #666; border-radius: 8px;" id="emptyAlertsMessage">
+                🔕 No price alerts yet. Start tracking card prices!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:3000/api';
+        const USER_ID = 'guest'; // In production, this would come from authentication
+
+        let currentPage = 1, totalPages = 1;
+        let searchCache = new Map(); // Cache for search results
+        let searchStartTime = null;
+        let currentSearchName = ''; // Store current search name
+        let currentSearchRarity = ''; // Store current search rarity
+
+        async function searchCards(page = 1, useCurrentSearch = false) {
+            // If useCurrentSearch is true, use stored search params (for pagination)
+            // Otherwise, read from search boxes (for new search)
+            let name, rarity;
+            if (useCurrentSearch) {
+                name = currentSearchName;
+                rarity = currentSearchRarity;
+            } else {
+                name = document.getElementById('cardName').value.trim();
+                rarity = document.getElementById('rarity').value;
+                // Store the search parameters for pagination
+                currentSearchName = name;
+                currentSearchRarity = rarity;
+            }
+
+            const results = document.getElementById('results');
+            const totalInfo = document.getElementById('totalInfo');
+            const pagination = document.getElementById('pagination');
+
+            // Hide welcome message once user starts searching
+            if (name || rarity) {
+                const welcomeMsg = document.getElementById('welcomeMessage');
+                if (welcomeMsg) welcomeMsg.style.display = 'none';
+            }
+
+            currentPage = page;
+
+            // Create cache key
+            const cacheKey = `${name}-${rarity}-${page}`;
+
+            // Check cache first
+            if (searchCache.has(cacheKey)) {
+                console.log('Loading from cache...');
+                const cachedData = searchCache.get(cacheKey);
+                displayResults(cachedData, results, totalInfo, pagination, page);
+                totalInfo.innerHTML = 'Found <strong>' + (cachedData.totalCount || cachedData.data.length) + '</strong> cards <span style="color: #28a745;">(from cache ⚡)</span>';
+                return;
+            }
+
+            // Show loading with timer
+            searchStartTime = Date.now();
+            results.innerHTML = '<div class="loading">🔄 Searching... <span id="searchTimer">0s</span></div>';
+            totalInfo.innerHTML = '';
+            pagination.innerHTML = '';
+
+            // Update timer every 100ms
+            const timerInterval = setInterval(() => {
+                const elapsed = ((Date.now() - searchStartTime) / 1000).toFixed(1);
+                const timerElement = document.getElementById('searchTimer');
+                if (timerElement) {
+                    timerElement.textContent = elapsed + 's';
+                }
+            }, 100);
+
+            try {
+                const params = new URLSearchParams();
+
+                // Build query string for Pokemon TCG API
+                let queryParts = [];
+                if (name) {
+                    queryParts.push(`name:${name}*`);
+                }
+                if (rarity && rarity !== '') {
+                    queryParts.push(`rarity:"${rarity}"`);
+                }
+
+                if (queryParts.length > 0) {
+                    params.append('q', queryParts.join(' '));
+                }
+
+                params.append('page', page);
+                params.append('pageSize', 20);
+
+                const response = await fetch(`${API_BASE_URL}/cards?` + params, {
+                    signal: AbortSignal.timeout(90000) // 90 second timeout
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                clearInterval(timerInterval);
+                const loadTime = ((Date.now() - searchStartTime) / 1000).toFixed(2);
+
+                // Handle empty or error responses
+                if (!data.data) {
+                    data.data = [];
+                    data.totalCount = 0;
+                }
+
+                // Store in cache
+                searchCache.set(cacheKey, data);
+
+                // Limit cache size to 50 entries
+                if (searchCache.size > 50) {
+                    const firstKey = searchCache.keys().next().value;
+                    searchCache.delete(firstKey);
+                }
+
+                displayResults(data, results, totalInfo, pagination, page, loadTime);
+            } catch (error) {
+                clearInterval(timerInterval);
+                console.error('Search error:', error);
+                if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+                    results.innerHTML = '<div class="no-results">⏱️ Pokemon TCG API is slow right now. <button onclick="searchCards(1, false)" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px;">🔄 Try Again</button></div>';
+                } else if (error.message.includes('404') || error.message.includes('500') || error.message.includes('504')) {
+                    results.innerHTML = '<div class="no-results">⚠️ Pokemon TCG API is experiencing issues. <button onclick="searchCards(1, false)" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px;">🔄 Retry Search</button></div>';
+                } else {
+                    results.innerHTML = '<div class="no-results">❌ Search error - ' + error.message + '<br><button onclick="searchCards(1, false)" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px;">🔄 Try Again</button></div>';
+                }
+            }
+        }
+
+        function displayResults(data, results, totalInfo, pagination, page, loadTime = null) {
+            if (data.data && data.data.length > 0) {
+                totalPages = Math.ceil((data.totalCount || data.data.length) / 20);
+
+                // Show result count with load time if available
+                if (loadTime) {
+                    totalInfo.innerHTML = 'Found <strong>' + (data.totalCount || data.data.length) + '</strong> cards <span style="color: #666; font-size: 12px;">(loaded in ' + loadTime + 's)</span>';
+                } else {
+                    totalInfo.innerHTML = 'Found <strong>' + (data.totalCount || data.data.length) + '</strong> cards';
+                }
+
+                results.innerHTML = data.data.map((card, index) =>
+                    '<div class="card-item" onclick="openCardDetail(' + index + ')">' +
+                    '<img src="' + card.images.small + '" alt="' + card.name + '">' +
+                    '<div class="card-info">' +
+                    '<div class="card-name">' + card.name + '</div>' +
+                    '<div class="card-set">' + card.set.name + ' • ' + (card.rarity || 'N/A') + '</div>' +
+                    '<div class="card-prices">' + getPricesHTML(card) + '</div>' +
+                    '</div></div>'
+                ).join('');
+
+                // Store cards data globally for detail view
+                window.cardsData = data.data;
+
+                // Only show pagination if there are multiple pages
+                if (totalPages > 1) {
+                    let paginationHTML = '';
+
+                    // Show Previous button only if not on first page
+                    if (page > 1) {
+                        paginationHTML += '<button onclick="searchCards(' + (page-1) + ', true)">⬅ Previous</button>';
+                    }
+
+                    // Show Next button only if not on last page
+                    if (page < totalPages) {
+                        paginationHTML += '<button onclick="searchCards(' + (page+1) + ', true)">Next ➡</button>';
+                    }
+
+                    pagination.innerHTML = paginationHTML;
+                } else {
+                    pagination.innerHTML = '';
+                }
+            } else {
+                results.innerHTML = '<div class="no-results">😢 No cards found</div>';
+                totalInfo.innerHTML = '';
+                pagination.innerHTML = '';
+            }
+        }
+        
+        function getPricesHTML(card) {
+            if (card.tcgplayer && card.tcgplayer.prices) {
+                const prices = card.tcgplayer.prices;
+                const type = Object.keys(prices)[0];
+                if (type && prices[type].market) {
+                    return '<div class="price-row"><span class="price-label">Market</span><span class="price-value">$' + prices[type].market.toFixed(2) + '</span></div>';
+                }
+            }
+            if (card.cardmarket && card.cardmarket.prices && card.cardmarket.prices.averageSellPrice) {
+                return '<div class="price-row"><span class="price-label">Average</span><span class="price-value">€' + card.cardmarket.prices.averageSellPrice.toFixed(2) + '</span></div>';
+            }
+            return '<div class="price-row"><span class="price-label">Price</span><span class="price-value">N/A</span></div>';
+        }
+        
+        function clearCache() {
+            const size = searchCache.size;
+            searchCache.clear();
+            const totalInfo = document.getElementById('totalInfo');
+            totalInfo.innerHTML = '<span style="color: #28a745;">✓ Cache cleared! (' + size + ' entries removed)</span>';
+            setTimeout(() => {
+                totalInfo.innerHTML = '';
+            }, 3000);
+        }
+
+        document.getElementById('cardName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchCards(1);
+        });
+
+        // Modal and Chart Management
+        let currentCard = null;
+        let currentTimeRange = '3m';
+        let priceChart = null;
+
+        function openCardDetail(cardIndex) {
+            currentCard = window.cardsData[cardIndex];
+            const modal = document.getElementById('cardModal');
+
+            // Populate card information
+            document.getElementById('modalTitle').textContent = currentCard.name;
+            document.getElementById('modalImage').src = currentCard.images.large || currentCard.images.small;
+
+            // Product details
+            document.getElementById('modalRarity').textContent = currentCard.rarity || 'N/A';
+            document.getElementById('modalNumber').textContent = currentCard.number || 'N/A';
+            document.getElementById('modalType').textContent = currentCard.types ? currentCard.types.join(', ') : 'N/A';
+            document.getElementById('modalSet').textContent = currentCard.set ? currentCard.set.name : 'N/A';
+
+            // Get base price
+            let basePrice = 10;
+            if (currentCard.tcgplayer && currentCard.tcgplayer.prices) {
+                const prices = currentCard.tcgplayer.prices;
+                const type = Object.keys(prices)[0];
+                if (type && prices[type].market) {
+                    basePrice = prices[type].market;
+                }
+            }
+
+            // Price information
+            document.getElementById('mainPrice').textContent = '$' + basePrice.toFixed(2);
+            document.getElementById('holofoilPrice').textContent = '$' + (basePrice * 1.05).toFixed(2);
+            document.getElementById('marketPrice').textContent = '$' + (basePrice * 1.02).toFixed(2);
+            document.getElementById('recentSale').textContent = '$' + (basePrice * 0.98).toFixed(2);
+
+            // Generate random stats
+            const currentQty = Math.floor(Math.random() * 10) + 1;
+            const currentSellers = Math.floor(Math.random() * 5) + 1;
+            const totalSold = Math.floor(Math.random() * 200) + 50;
+            const avgDailySold = Math.floor(Math.random() * 5) + 1;
+
+            document.getElementById('currentQty').textContent = currentQty;
+            document.getElementById('currentSellers').textContent = currentSellers;
+
+            // 3 Month Snapshot
+            const lowPrice = basePrice * (0.6 + Math.random() * 0.2);
+            const highPrice = basePrice * (1.3 + Math.random() * 0.5);
+
+            document.getElementById('lowSalePrice').textContent = '$' + lowPrice.toFixed(2);
+            document.getElementById('highSalePrice').textContent = '$' + highPrice.toFixed(2);
+            document.getElementById('totalSold').textContent = totalSold;
+            document.getElementById('avgDailySold').textContent = avgDailySold;
+
+            // Generate sales history
+            generateSalesHistory(basePrice);
+
+            // Update lowest price
+            document.getElementById('lowestPrice').textContent = '$' + basePrice.toFixed(2);
+
+            // Show modal
+            modal.classList.add('show');
+
+            // Reset time range to 3 months
+            currentTimeRange = '3m';
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.time-btn')[1].classList.add('active');
+
+            // Render chart
+            renderPriceChart();
+
+            // Render reviews
+            renderReviews();
+
+            // Update favorite button state
+            updateFavoriteButton();
+        }
+
+        function generateSalesHistory(basePrice) {
+            const tbody = document.getElementById('salesTableBody');
+            const salesData = [];
+
+            // Generate 2 recent listings to match the "2 Listings" title
+            for (let i = 0; i < 2; i++) {
+                const daysAgo = Math.floor(Math.random() * 10);
+                const date = new Date();
+                date.setDate(date.getDate() - daysAgo);
+
+                const priceVariation = i === 0 ? 0 : (Math.random() - 0.3) * 0.3;
+                const salePrice = basePrice * (1 + priceVariation);
+
+                const hasBids = Math.random() > 0.5;
+                const numBids = hasBids ? Math.floor(Math.random() * 15) + 1 : 'No Auction';
+
+                salesData.push({
+                    price: salePrice,
+                    grade: 'Raw',
+                    bids: numBids,
+                    date: date.toISOString().split('T')[0],
+                    listingId: 'eBay: ' + Math.floor(Math.random() * 900000000 + 100000000),
+                    title: currentCard.name + ' - ' + (currentCard.set ? currentCard.set.name : 'Pokemon TCG')
+                });
+            }
+
+            // Sort by price ascending
+            salesData.sort((a, b) => a.price - b.price);
+
+            tbody.innerHTML = salesData.map(sale =>
+                '<tr>' +
+                '<td>$' + sale.price.toFixed(2) + '</td>' +
+                '<td>' + sale.grade + '</td>' +
+                '<td>' + sale.bids + '</td>' +
+                '<td>' + sale.date + '</td>' +
+                '<td>' + sale.listingId + '</td>' +
+                '<td>' + sale.title + '</td>' +
+                '</tr>'
+            ).join('');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('cardModal');
+            modal.classList.remove('show');
+            if (priceChart) {
+                priceChart.destroy();
+                priceChart = null;
+            }
+        }
+
+        function changeTimeRange(range) {
+            currentTimeRange = range;
+
+            // Update active button
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Re-render chart
+            renderPriceChart();
+        }
+
+        function generatePriceHistory(basePrice, range) {
+            let dataPoints, dateInterval;
+
+            switch(range) {
+                case '1m':
+                    dataPoints = 30;
+                    dateInterval = 'day';
+                    break;
+                case '3m':
+                    dataPoints = 90;
+                    dateInterval = 'day';
+                    break;
+                case '6m':
+                    dataPoints = 180;
+                    dateInterval = 'day';
+                    break;
+                case '1y':
+                    dataPoints = 365;
+                    dateInterval = 'day';
+                    break;
+                default:
+                    dataPoints = 90;
+                    dateInterval = 'day';
+            }
+
+            const labels = [];
+            const data = [];
+            let currentDate = new Date();
+            let price = basePrice;
+
+            // Sample data to reduce chart points for better performance
+            const sampleRate = dataPoints > 90 ? 3 : 1;
+
+            for (let i = dataPoints - 1; i >= 0; i -= sampleRate) {
+                const date = new Date(currentDate);
+                date.setDate(date.getDate() - i);
+
+                // Format date based on range
+                if (dataPoints <= 30) {
+                    labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                } else {
+                    labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                }
+
+                // Generate realistic price fluctuation
+                const fluctuation = (Math.random() - 0.5) * 0.2; // ±20% fluctuation
+                price = price * (1 + fluctuation);
+                data.push(parseFloat(price.toFixed(2)));
+            }
+
+            // Make the last point close to the current price
+            data[data.length - 1] = basePrice;
+
+            return { labels, data };
+        }
+
+        function renderPriceChart() {
+            if (!currentCard) return;
+
+            // Get base price
+            let basePrice = 10; // default
+            if (currentCard.tcgplayer && currentCard.tcgplayer.prices) {
+                const prices = currentCard.tcgplayer.prices;
+                const type = Object.keys(prices)[0];
+                if (type && prices[type].market) {
+                    basePrice = prices[type].market;
+                }
+            } else if (currentCard.cardmarket && currentCard.cardmarket.prices && currentCard.cardmarket.prices.averageSellPrice) {
+                basePrice = currentCard.cardmarket.prices.averageSellPrice;
+            }
+
+            const { labels, data } = generatePriceHistory(basePrice, currentTimeRange);
+
+            // Destroy existing chart
+            if (priceChart) {
+                priceChart.destroy();
+            }
+
+            // Create new chart
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Price',
+                        data: data,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: '#007bff',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Price: $' + context.parsed.y.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                },
+                                color: '#666',
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.06)',
+                                borderColor: '#e0e0e0'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#666',
+                                font: {
+                                    size: 11
+                                },
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            },
+                            grid: {
+                                display: false
+                            },
+                            borderColor: '#e0e0e0'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('cardModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+
+        // Shopping Cart Management
+        let shoppingCart = JSON.parse(localStorage.getItem('pokemonCart')) || [];
+
+        function updateCartBadge() {
+            const cartBadge = document.getElementById('cartBadge');
+            const cartCount = document.getElementById('cartCount');
+            const itemCount = shoppingCart.reduce((total, item) => total + item.quantity, 0);
+
+            cartCount.textContent = itemCount;
+            cartBadge.style.display = itemCount > 0 ? 'block' : 'none';
+        }
+
+        function addToCart() {
+            if (!currentCard) return;
+
+            // Get price
+            let basePrice = 10;
+            if (currentCard.tcgplayer && currentCard.tcgplayer.prices) {
+                const prices = currentCard.tcgplayer.prices;
+                const type = Object.keys(prices)[0];
+                if (type && prices[type].market) {
+                    basePrice = prices[type].market;
+                }
+            }
+
+            // Check if card already exists in cart
+            const existingIndex = shoppingCart.findIndex(item => item.id === currentCard.id);
+
+            if (existingIndex !== -1) {
+                // Increase quantity
+                shoppingCart[existingIndex].quantity += 1;
+            } else {
+                // Add new item
+                const cartItem = {
+                    id: currentCard.id,
+                    name: currentCard.name,
+                    image: currentCard.images.small,
+                    price: basePrice,
+                    quantity: 1,
+                    set: currentCard.set ? currentCard.set.name : 'N/A',
+                    rarity: currentCard.rarity || 'N/A',
+                    number: currentCard.number || 'N/A',
+                    condition: 'Near Mint',
+                    seller: 'TCG Market'
+                };
+                shoppingCart.push(cartItem);
+            }
+
+            // Save to localStorage
+            localStorage.setItem('pokemonCart', JSON.stringify(shoppingCart));
+
+            // Update badge
+            updateCartBadge();
+
+            // Show confirmation
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Added to Cart';
+            btn.style.background = '#28a745';
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = '#0053a0';
+            }, 2000);
+        }
+
+        function openCart() {
+            // Hide main container and modal
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('cardModal').classList.remove('show');
+
+            // Show cart page
+            document.getElementById('cartPage').style.display = 'block';
+
+            // Render cart items
+            renderCart();
+        }
+
+        function backToMain() {
+            // Show main container
+            document.getElementById('mainContainer').style.display = 'block';
+
+            // Hide cart page
+            document.getElementById('cartPage').style.display = 'none';
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartItemsContainer');
+            const emptyMessage = document.getElementById('emptyCartMessage');
+
+            if (shoppingCart.length === 0) {
+                container.innerHTML = '';
+                emptyMessage.style.display = 'block';
+                updateCartSummary();
+                return;
+            }
+
+            emptyMessage.style.display = 'none';
+
+            // Group items by seller
+            const groupedItems = {};
+            shoppingCart.forEach((item, index) => {
+                const seller = item.seller || 'TCG Market';
+                if (!groupedItems[seller]) {
+                    groupedItems[seller] = [];
+                }
+                groupedItems[seller].push({...item, index});
+            });
+
+            // Render grouped items
+            let html = '';
+            Object.keys(groupedItems).forEach(seller => {
+                const items = groupedItems[seller];
+                const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+                html += `
+                    <div class="package-section">
+                        <div class="package-header">Package 1 of 1 - Digital Delivery</div>
+                        <div class="seller-name">Sold by: ${seller}</div>
+                        ${items.map(item => `
+                            <div class="cart-item">
+                                <div class="cart-item-image">
+                                    <img src="${item.image}" alt="${item.name}">
+                                </div>
+                                <div class="cart-item-details">
+                                    <div class="cart-item-title">${item.name}</div>
+                                    <div class="cart-item-meta">Set: ${item.set} • #${item.number}</div>
+                                    <div class="cart-item-meta">Rarity: ${item.rarity}</div>
+                                    <div class="cart-item-condition">✓ Digital - Instant Delivery</div>
+                                    <div class="cart-item-actions">
+                                        <select class="qty-selector" onchange="updateQuantity(${item.index}, this.value)">
+                                            ${[1,2,3,4,5,6,7,8,9,10].map(n =>
+                                                `<option value="${n}" ${item.quantity === n ? 'selected' : ''}>Qty: ${n}</option>`
+                                            ).join('')}
+                                        </select>
+                                        <span class="cart-action-link" onclick="removeFromCart(${item.index})">Delete</span>
+                                        <span class="cart-action-link">Save for later</span>
+                                    </div>
+                                </div>
+                                <div class="cart-item-price">
+                                    <div class="item-price">$${(item.price * item.quantity).toFixed(2)}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        <div class="package-subtotal">
+                            <div class="subtotal-row">
+                                <span class="subtotal-label">Items (${items.reduce((sum, item) => sum + item.quantity, 0)}):</span>
+                                <span class="subtotal-value">$${subtotal.toFixed(2)}</span>
+                            </div>
+                            <div class="subtotal-row">
+                                <span class="subtotal-label">Total before tax:</span>
+                                <span class="subtotal-value">$${subtotal.toFixed(2)}</span>
+                            </div>
+                            <div class="subtotal-row">
+                                <span class="subtotal-label">Estimated tax:</span>
+                                <span class="subtotal-value">$${(subtotal * 0.08).toFixed(2)}</span>
+                            </div>
+                            <div class="subtotal-row" style="font-size: 16px; font-weight: 600; color: #B12704; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                                <span class="subtotal-label">Package total:</span>
+                                <span class="subtotal-value">$${(subtotal * 1.08).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            updateCartSummary();
+        }
+
+        function updateQuantity(index, newQuantity) {
+            shoppingCart[index].quantity = parseInt(newQuantity);
+            localStorage.setItem('pokemonCart', JSON.stringify(shoppingCart));
+            renderCart();
+            updateCartBadge();
+        }
+
+        function removeFromCart(index) {
+            shoppingCart.splice(index, 1);
+            localStorage.setItem('pokemonCart', JSON.stringify(shoppingCart));
+            renderCart();
+            updateCartBadge();
+        }
+
+        function updateCartSummary() {
+            const subtotal = shoppingCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const itemCount = shoppingCart.reduce((sum, item) => sum + item.quantity, 0);
+            const tax = subtotal * 0.08;
+            const total = subtotal + tax;
+
+            document.getElementById('summaryItemCount').textContent = itemCount;
+            document.getElementById('summarySubtotal').textContent = '$' + subtotal.toFixed(2);
+            document.getElementById('summaryBeforeTax').textContent = '$' + subtotal.toFixed(2);
+            document.getElementById('summaryTax').textContent = '$' + tax.toFixed(2);
+            document.getElementById('summaryTotal').textContent = '$' + total.toFixed(2);
+        }
+
+        function proceedToCheckout() {
+            if (shoppingCart.length === 0) {
+                alert('Your cart is empty! Add some cards first.');
+                return;
+            }
+            // Show sign in modal
+            openSignIn();
+        }
+
+        // Favorites Management with MongoDB
+        let favoriteCards = [];
+
+        // Load favorites from database
+        async function loadFavoritesFromDB() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/favorites?userId=${USER_ID}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    favoriteCards = result.data.map(fav => ({
+                        id: fav.cardId,
+                        name: fav.name,
+                        image: fav.image,
+                        price: fav.price,
+                        set: fav.set,
+                        rarity: fav.rarity,
+                        number: fav.number
+                    }));
+                    updateFavoritesBadge();
+                }
+            } catch (error) {
+                console.error('Error loading favorites:', error);
+            }
+        }
+
+        function updateFavoritesBadge() {
+            const favoritesBadge = document.getElementById('favoritesBadge');
+            const favoritesCount = document.getElementById('favoritesCount');
+            const count = favoriteCards.length;
+
+            favoritesCount.textContent = count;
+            favoritesBadge.style.display = count > 0 ? 'block' : 'none';
+        }
+
+        async function toggleFavorite() {
+            if (!currentCard) return;
+
+            const cardId = currentCard.id;
+            const existingIndex = favoriteCards.findIndex(item => item.id === cardId);
+
+            try {
+                if (existingIndex !== -1) {
+                    // Remove from favorites via API
+                    const response = await fetch(`${API_BASE_URL}/favorites/${cardId}?userId=${USER_ID}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        favoriteCards.splice(existingIndex, 1);
+                        alert('❤️ Removed from favorites!');
+                        updateFavoritesBadge();
+                        updateFavoriteButton();
+                    }
+                } else {
+                    // Add to favorites via API
+                    let basePrice = 10;
+                    if (currentCard.tcgplayer && currentCard.tcgplayer.prices) {
+                        const prices = currentCard.tcgplayer.prices;
+                        const type = Object.keys(prices)[0];
+                        if (type && prices[type].market) {
+                            basePrice = prices[type].market;
+                        }
+                    }
+
+                    const favoriteData = {
+                        userId: USER_ID,
+                        cardId: currentCard.id,
+                        name: currentCard.name,
+                        image: currentCard.images.small,
+                        price: basePrice,
+                        set: currentCard.set ? currentCard.set.name : 'N/A',
+                        rarity: currentCard.rarity || 'N/A',
+                        number: currentCard.number || 'N/A'
+                    };
+
+                    const response = await fetch(`${API_BASE_URL}/favorites`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(favoriteData)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        favoriteCards.push({
+                            id: currentCard.id,
+                            name: currentCard.name,
+                            image: currentCard.images.small,
+                            price: basePrice,
+                            set: currentCard.set ? currentCard.set.name : 'N/A',
+                            rarity: currentCard.rarity || 'N/A',
+                            number: currentCard.number || 'N/A'
+                        });
+                        alert('💖 Added to favorites!');
+                        updateFavoritesBadge();
+                        updateFavoriteButton();
+                    } else if (response.status === 409) {
+                        alert('Card is already in your favorites!');
+                    }
+                }
+            } catch (error) {
+                console.error('Error toggling favorite:', error);
+                alert('❌ Error updating favorites. Please check if the server is running.');
+            }
+        }
+
+        function updateFavoriteButton() {
+            if (!currentCard) return;
+
+            const btn = document.getElementById('favoritesBtn');
+            const isFavorited = favoriteCards.some(item => item.id === currentCard.id);
+
+            if (isFavorited) {
+                btn.textContent = '💔 Remove from Favorites';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '❤️ Add to Favorites';
+                btn.classList.remove('active');
+            }
+        }
+
+        async function openFavorites() {
+            // Hide main container and other pages
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('cardModal').classList.remove('show');
+            document.getElementById('cartPage').style.display = 'none';
+
+            // Show favorites page
+            document.getElementById('favoritesPage').style.display = 'block';
+
+            // Reload favorites from database before rendering
+            await loadFavoritesFromDB();
+
+            // Render favorites
+            renderFavorites();
+        }
+
+        function backToMainFromFavorites() {
+            // Show main container
+            document.getElementById('mainContainer').style.display = 'block';
+
+            // Hide favorites page
+            document.getElementById('favoritesPage').style.display = 'none';
+        }
+
+        function renderFavorites() {
+            const container = document.getElementById('favoritesContainer');
+            const emptyMessage = document.getElementById('emptyFavoritesMessage');
+
+            if (favoriteCards.length === 0) {
+                container.innerHTML = '';
+                emptyMessage.style.display = 'block';
+                return;
+            }
+
+            emptyMessage.style.display = 'none';
+
+            container.innerHTML = favoriteCards.map((card, index) =>
+                '<div class="card-item" style="position: relative;">' +
+                '<button onclick="removeFromFavorites(\'' + card.id + '\')" style="position: absolute; top: 10px; right: 10px; background: #e11d48; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">×</button>' +
+                '<div onclick="openFavoriteCardDetail(' + index + ')">' +
+                '<img src="' + card.image + '" alt="' + card.name + '">' +
+                '<div class="card-info">' +
+                '<div class="card-name">' + card.name + '</div>' +
+                '<div class="card-set">' + card.set + ' • ' + card.rarity + '</div>' +
+                '<div class="card-price" style="color: #B12704; font-weight: 600; margin-top: 5px;">$' + card.price.toFixed(2) + '</div>' +
+                '</div></div></div>'
+            ).join('');
+        }
+
+        async function removeFromFavorites(cardId) {
+            if (!confirm('Remove this card from your favorites?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/favorites/${cardId}?userId=${USER_ID}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // Remove from local array
+                    const index = favoriteCards.findIndex(item => item.id === cardId);
+                    if (index !== -1) {
+                        favoriteCards.splice(index, 1);
+                    }
+                    renderFavorites();
+                    updateFavoritesBadge();
+                } else {
+                    alert('Error removing favorite');
+                }
+            } catch (error) {
+                console.error('Error removing favorite:', error);
+                alert('❌ Error removing favorite. Please check if the server is running.');
+            }
+        }
+
+        function openFavoriteCardDetail(cardIndex) {
+            // We need to fetch the full card data from API
+            const favoriteCard = favoriteCards[cardIndex];
+
+            // For now, just show a simplified modal with the favorite card info
+            // In a full app, you would fetch the full card details from the API
+            alert('Opening card details for: ' + favoriteCard.name + '\n\nIn a full implementation, this would show the complete card details modal.');
+        }
+
+        // Sign In Modal Functions
+        function openSignIn() {
+            const modal = document.getElementById('signInModal');
+            modal.classList.add('show');
+        }
+
+        function closeSignIn() {
+            const modal = document.getElementById('signInModal');
+            modal.classList.remove('show');
+        }
+
+        function showCreateAccount() {
+            alert('Create Account feature coming soon!\n\n(This is a demo)');
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const signInModal = document.getElementById('signInModal');
+            if (event.target === signInModal) {
+                closeSignIn();
+            }
+        });
+
+        // Review System
+        let userRating = 0;
+        let isLoggedIn = false; // Track login state
+        let cardReviews = {}; // Store reviews by card ID
+
+        function setRating(rating) {
+            userRating = rating;
+            const stars = document.querySelectorAll('.rating-star');
+            stars.forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+
+        function generateSampleReviews(cardName) {
+            const reviews = [
+                {
+                    username: 'TCG_Master_92',
+                    avatar: 'T',
+                    rating: 5,
+                    date: '2 days ago',
+                    badges: ['Meta Strong', 'Great Value'],
+                    text: 'This card is absolutely meta-defining! The power-to-cost ratio is incredible. I\'ve been running it in my competitive deck and it consistently performs above expectations. The versatility in multiple deck archetypes makes it worth every penny. Highly recommend for anyone serious about climbing the ladder.',
+                    helpful: 24
+                },
+                {
+                    username: 'CardCollector_Pro',
+                    avatar: 'C',
+                    rating: 4,
+                    date: '1 week ago',
+                    badges: ['Solid Pick'],
+                    text: `Great card for its price point. ${cardName} fits well into mid-range strategies and offers good synergy with popular support cards. Not quite top-tier but definitely tournament viable. The artwork is also stunning which is a nice bonus. Would give it 4.5 stars if I could!`,
+                    helpful: 18
+                },
+                {
+                    username: 'CompetitivePlayer',
+                    avatar: 'P',
+                    rating: 5,
+                    date: '3 weeks ago',
+                    badges: ['Tournament Tested', 'Excellent Value'],
+                    text: 'Took this to regionals last month and went 6-2. The card overperformed in every matchup. At this price point, it\'s an absolute steal. The ability combinations create so many strategic options. If you\'re on the fence about purchasing, don\'t hesitate - this is one of the best value cards in the current meta.',
+                    helpful: 31
+                }
+            ];
+            return reviews;
+        }
+
+        function renderReviews() {
+            if (!currentCard) return;
+
+            const cardId = currentCard.id;
+            const reviewsList = document.getElementById('reviewsList');
+
+            // Get existing reviews for this card or generate sample reviews
+            if (!cardReviews[cardId]) {
+                cardReviews[cardId] = generateSampleReviews(currentCard.name);
+            }
+
+            const reviews = cardReviews[cardId];
+
+            reviewsList.innerHTML = reviews.map(review => `
+                <div class="review-item">
+                    <div class="review-header">
+                        <div class="review-avatar">${review.avatar}</div>
+                        <div class="review-user-info">
+                            <div class="review-username">${review.username}</div>
+                            <div class="review-date">${review.date}</div>
+                        </div>
+                    </div>
+                    <div class="review-rating">
+                        ${Array(5).fill(0).map((_, i) =>
+                            `<span class="star ${i < review.rating ? '' : 'empty'}">★</span>`
+                        ).join('')}
+                    </div>
+                    <div class="review-badges">
+                        ${review.badges.map(badge =>
+                            `<span class="review-badge ${badge.includes('Value') || badge.includes('Excellent') ? 'badge-value' : 'badge-strength'}">${badge}</span>`
+                        ).join('')}
+                    </div>
+                    <div class="review-text">${review.text}</div>
+                    <div class="review-helpful">
+                        <button class="helpful-btn">👍 Helpful (${review.helpful})</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function submitReview() {
+            const reviewText = document.getElementById('reviewText').value.trim();
+
+            if (!reviewText) {
+                alert('Please write a review before submitting!');
+                return;
+            }
+
+            if (userRating === 0) {
+                alert('Please select a rating (1-5 stars) before submitting!');
+                return;
+            }
+
+            // Check if user is logged in
+            if (!isLoggedIn) {
+                // Show sign in modal
+                openSignIn();
+                return;
+            }
+
+            // Add review to the list
+            if (currentCard) {
+                const cardId = currentCard.id;
+                if (!cardReviews[cardId]) {
+                    cardReviews[cardId] = generateSampleReviews(currentCard.name);
+                }
+
+                const newReview = {
+                    username: 'You',
+                    avatar: 'Y',
+                    rating: userRating,
+                    date: 'Just now',
+                    badges: userRating >= 4 ? ['Great Pick'] : ['Reviewed'],
+                    text: reviewText,
+                    helpful: 0
+                };
+
+                cardReviews[cardId].unshift(newReview);
+
+                // Re-render reviews
+                renderReviews();
+
+                // Clear form
+                document.getElementById('reviewText').value = '';
+                userRating = 0;
+                document.querySelectorAll('.rating-star').forEach(star => {
+                    star.classList.remove('active');
+                });
+
+                // Show success message
+                alert('Thank you for your review! Your feedback helps the community make informed decisions.');
+            }
+        }
+
+        // Sign in handler with review support
+        function handleSignIn(event) {
+            event.preventDefault();
+            const email = document.getElementById('signInEmail').value;
+            const password = document.getElementById('signInPassword').value;
+
+            if (email && password) {
+                isLoggedIn = true;
+                closeSignIn();
+
+                // Clear form
+                document.getElementById('signInEmail').value = '';
+                document.getElementById('signInPassword').value = '';
+
+                // Check if user was trying to submit a review
+                const reviewText = document.getElementById('reviewText').value.trim();
+                if (reviewText && userRating > 0) {
+                    alert('Sign in successful! Your review will be posted now.');
+                    setTimeout(() => {
+                        submitReview();
+                    }, 500);
+                } else {
+                    alert('Sign in successful! Welcome back!');
+                    // If in cart, proceed to checkout
+                    if (document.getElementById('cartPage').style.display !== 'none') {
+                        setTimeout(() => {
+                            alert('Proceeding to checkout... (This is a demo, no actual payment will be processed)');
+                        }, 500);
+                    }
+                }
+            }
+        }
+
+        // Load random cards on initial page load
+        async function loadRandomCards() {
+            const results = document.getElementById('results');
+            const totalInfo = document.getElementById('totalInfo');
+
+            results.innerHTML = '<div class="loading">🔄 Loading featured cards...</div>';
+
+            try {
+                // Fetch random cards - just get page 1 without any search terms
+                const response = await fetch(`${API_BASE_URL}/cards?page=1&pageSize=20`, {
+                    signal: AbortSignal.timeout(90000) // 90 second timeout
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.data && data.data.length > 0) {
+                    totalInfo.innerHTML = 'Featured Cards';
+
+                    results.innerHTML = data.data.map((card, index) =>
+                        '<div class="card-item" onclick="openCardDetail(' + index + ')">' +
+                        '<img src="' + card.images.small + '" alt="' + card.name + '">' +
+                        '<div class="card-info">' +
+                        '<div class="card-name">' + card.name + '</div>' +
+                        '<div class="card-set">' + card.set.name + ' • ' + (card.rarity || 'N/A') + '</div>' +
+                        '<div class="card-prices">' + getPricesHTML(card) + '</div>' +
+                        '</div></div>'
+                    ).join('');
+
+                    // Store cards data globally for detail view
+                    window.cardsData = data.data;
+                } else {
+                    results.innerHTML = '<div class="no-results">No cards available at the moment</div>';
+                }
+            } catch (error) {
+                console.error('Error loading cards:', error);
+                if (error.name === 'TimeoutError') {
+                    results.innerHTML = '<div class="no-results">⏱️ Loading timeout - <a href="javascript:loadRandomCards()" style="color: #007bff;">Try again</a></div>';
+                } else {
+                    results.innerHTML = '<div class="no-results">❌ Error loading cards - <a href="javascript:loadRandomCards()" style="color: #007bff;">Try again</a></div>';
+                }
+            }
+        }
+
+        // Initialize cart badge on page load
+        updateCartBadge();
+
+        // Initialize favorites from database on page load
+        loadFavoritesFromDB();
+
+        // Load random featured cards on page load
+        loadRandomCards();
+
+        // ==================== PRICE TRACKING MANAGEMENT ====================
+
+        let priceAlerts = [];
+
+        // Load price alerts from database
+        async function loadPriceAlertsFromDB() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/price-alerts?userId=${USER_ID}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    priceAlerts = result.data;
+                    updatePriceTrackingBadge();
+                }
+            } catch (error) {
+                console.error('Error loading price alerts:', error);
+            }
+        }
+
+        function updatePriceTrackingBadge() {
+            const badge = document.getElementById('priceTrackingBadge');
+            const count = document.getElementById('alertsCount');
+            const activeAlerts = priceAlerts.filter(a => a.isActive).length;
+
+            count.textContent = activeAlerts;
+            badge.style.display = activeAlerts > 0 ? 'block' : 'none';
+        }
+
+        function openPriceAlertModal() {
+            if (!currentCard) return;
+
+            const modal = document.getElementById('priceAlertModal');
+            const img = document.getElementById('alertCardImage');
+            const name = document.getElementById('alertCardName');
+            const currentPrice = document.getElementById('alertCurrentPrice');
+
+            // Get current price
+            let basePrice = 10;
+            if (currentCard.tcgplayer && currentCard.tcgplayer.prices) {
+                const prices = currentCard.tcgplayer.prices;
+                const type = Object.keys(prices)[0];
+                if (type && prices[type].market) {
+                    basePrice = prices[type].market;
+                }
+            }
+
+            img.src = currentCard.images.small;
+            name.textContent = currentCard.name;
+            currentPrice.textContent = `Current Price: $${basePrice.toFixed(2)}`;
+
+            // Set default target price
+            document.getElementById('alertTargetPrice').value = basePrice.toFixed(2);
+
+            modal.classList.add('show');
+        }
+
+        function closePriceAlertModal() {
+            const modal = document.getElementById('priceAlertModal');
+            modal.classList.remove('show');
+        }
+
+        async function createPriceAlert(event) {
+            event.preventDefault();
+
+            if (!currentCard) return;
+
+            const condition = document.getElementById('alertCondition').value;
+            const targetPrice = parseFloat(document.getElementById('alertTargetPrice').value);
+
+            // Get current price
+            let currentPrice = 10;
+            if (currentCard.tcgplayer && currentCard.tcgplayer.prices) {
+                const prices = currentCard.tcgplayer.prices;
+                const type = Object.keys(prices)[0];
+                if (type && prices[type].market) {
+                    currentPrice = prices[type].market;
+                }
+            }
+
+            const alertData = {
+                userId: USER_ID,
+                cardId: currentCard.id,
+                name: currentCard.name,
+                image: currentCard.images.small,
+                currentPrice: currentPrice,
+                targetPrice: targetPrice,
+                condition: condition,
+                set: currentCard.set ? currentCard.set.name : 'N/A',
+                rarity: currentCard.rarity || 'N/A',
+                number: currentCard.number || 'N/A'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/price-alerts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(alertData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    priceAlerts.push(result.data);
+                    updatePriceTrackingBadge();
+                    closePriceAlertModal();
+                    alert('✅ Price alert created successfully!');
+                } else {
+                    alert('❌ Error creating price alert: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error creating price alert:', error);
+                alert('❌ Error creating price alert. Please check if the server is running.');
+            }
+        }
+
+        async function openPriceTracking() {
+            // Hide other pages
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('cardModal').classList.remove('show');
+            document.getElementById('cartPage').style.display = 'none';
+            document.getElementById('favoritesPage').style.display = 'none';
+
+            // Show price tracking page
+            document.getElementById('priceTrackingPage').style.display = 'block';
+
+            // Reload alerts from database
+            await loadPriceAlertsFromDB();
+
+            // Render alerts
+            renderPriceAlerts();
+        }
+
+        function backToMainFromPriceTracking() {
+            document.getElementById('mainContainer').style.display = 'block';
+            document.getElementById('priceTrackingPage').style.display = 'none';
+        }
+
+        function renderPriceAlerts() {
+            const container = document.getElementById('alertsContainer');
+            const emptyMessage = document.getElementById('emptyAlertsMessage');
+
+            if (priceAlerts.length === 0) {
+                container.innerHTML = '';
+                emptyMessage.style.display = 'block';
+                return;
+            }
+
+            emptyMessage.style.display = 'none';
+
+            container.innerHTML = priceAlerts.map(alert => `
+                <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; gap: 20px; align-items: center;">
+                    <img src="${alert.image}" alt="${alert.name}" style="width: 100px; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; font-size: 16px; margin-bottom: 5px;">${alert.name}</div>
+                        <div style="color: #666; font-size: 14px; margin-bottom: 5px;">${alert.set} • ${alert.rarity}</div>
+                        <div style="display: flex; gap: 20px; align-items: center; margin-top: 10px;">
+                            <div>
+                                <div style="font-size: 12px; color: #666;">Current Price</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #0F1111;">$${alert.currentPrice.toFixed(2)}</div>
+                            </div>
+                            <div style="font-size: 20px; color: #666;">→</div>
+                            <div>
+                                <div style="font-size: 12px; color: #666;">Alert When</div>
+                                <div style="font-size: 18px; font-weight: 600; color: ${alert.condition === 'below' ? '#059669' : '#dc2626'};">
+                                    ${alert.condition === 'below' ? '≤' : '≥'} $${alert.targetPrice.toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <span style="display: inline-block; padding: 4px 12px; background: ${alert.isActive ? '#d1fae5' : '#f3f4f6'}; color: ${alert.isActive ? '#065f46' : '#6b7280'}; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                ${alert.isActive ? '🟢 Active' : '⚪ Inactive'}
+                            </span>
+                            ${alert.triggered ? '<span style="display: inline-block; padding: 4px 12px; background: #fef3c7; color: #92400e; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px;">⚡ Triggered!</span>' : ''}
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button onclick="toggleAlertStatus('${alert._id}', ${!alert.isActive})" style="padding: 8px 16px; background: ${alert.isActive ? '#f59e0b' : '#059669'}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            ${alert.isActive ? '⏸ Pause' : '▶ Resume'}
+                        </button>
+                        <button onclick="removeAlert('${alert._id}')" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            🗑 Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function toggleAlertStatus(alertId, newStatus) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/price-alerts/${alertId}?userId=${USER_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ isActive: newStatus })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Update local array
+                    const index = priceAlerts.findIndex(a => a._id === alertId);
+                    if (index !== -1) {
+                        priceAlerts[index] = result.data;
+                    }
+                    renderPriceAlerts();
+                    updatePriceTrackingBadge();
+                } else {
+                    alert('Error updating alert status');
+                }
+            } catch (error) {
+                console.error('Error updating alert:', error);
+                alert('❌ Error updating alert. Please check if the server is running.');
+            }
+        }
+
+        async function removeAlert(alertId) {
+            if (!confirm('Remove this price alert?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/price-alerts/${alertId}?userId=${USER_ID}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Remove from local array
+                    priceAlerts = priceAlerts.filter(a => a._id !== alertId);
+                    renderPriceAlerts();
+                    updatePriceTrackingBadge();
+                } else {
+                    alert('Error removing alert');
+                }
+            } catch (error) {
+                console.error('Error removing alert:', error);
+                alert('❌ Error removing alert. Please check if the server is running.');
+            }
+        }
+
+        // Initialize price alerts on page load
+        loadPriceAlertsFromDB();
+    </script>
+</body>
+</html>
