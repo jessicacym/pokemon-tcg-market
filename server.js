@@ -137,7 +137,7 @@ app.get('/api/favorites', (req, res) => {
 });
 
 app.post('/api/favorites', (req, res) => {
-    const { userId, cardId, cardData } = req.body;
+    const { userId, cardId } = req.body;
 
     // Check if already exists
     const exists = favorites.find(f => f.userId === userId && f.cardId === cardId);
@@ -149,7 +149,6 @@ app.post('/api/favorites', (req, res) => {
         id: Date.now().toString(),
         userId,
         cardId,
-        cardData,
         createdAt: new Date()
     };
 
@@ -212,11 +211,11 @@ app.delete('/api/price-alerts/:alertId', (req, res) => {
 app.put('/api/price-alerts/:alertId', (req, res) => {
     const { alertId } = req.params;
     const { userId } = req.query;
-    const { enabled } = req.body;
+    const { isActive } = req.body;
 
     const alert = priceAlerts.find(a => a.userId === userId && a.id === alertId);
     if (alert) {
-        alert.enabled = enabled;
+        alert.isActive = isActive;
         res.json({ success: true, data: alert });
     } else {
         res.json({ success: false, message: 'Alert not found' });

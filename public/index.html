@@ -12,6 +12,7 @@
             background: #f5f5f5;
             min-height: 100vh;
             padding: 20px;
+            position: relative;
         }
         .container { max-width: 1200px; margin: 0 auto; }
         h1 {
@@ -642,36 +643,42 @@
             background: #d97706;
         }
         .favorites-badge {
-            position: fixed;
-            top: 70px;
+            position: absolute;
+            top: 20px;
             right: 20px;
             background: #e11d48;
             color: #fff;
-            padding: 8px 16px;
-            border-radius: 20px;
+            padding: 10px 20px;
+            border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 999;
+            font-size: 15px;
         }
         .favorites-badge:hover {
             background: #be123c;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
         }
         .price-tracking-badge {
-            position: fixed;
-            top: 120px;
+            position: absolute;
+            top: 70px;
             right: 20px;
             background: #059669;
             color: #fff;
-            padding: 8px 16px;
-            border-radius: 20px;
+            padding: 10px 20px;
+            border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 999;
+            font-size: 15px;
         }
         .price-tracking-badge:hover {
             background: #047857;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
         }
         .set-alert-btn {
             padding: 12px 30px;
@@ -1066,17 +1073,6 @@
             <button onclick="searchCards(1)">🔍 Search</button>
             <button class="clear-cache-btn" onclick="clearCache()">🗑️ Clear Cache</button>
         </div>
-
-        <!-- Quick Navigation Buttons -->
-        <div style="display: flex; gap: 10px; justify-content: center; margin: 15px 0;">
-            <button onclick="openFavorites()" style="padding: 10px 24px; background: #e11d48; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(225, 29, 72, 0.3); transition: all 0.3s;">
-                ❤️ My Favorites (<span id="favoritesCountNav">0</span>)
-            </button>
-            <button onclick="openPriceTracking()" style="padding: 10px 24px; background: #059669; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3); transition: all 0.3s;">
-                🔔 My Price Alerts (<span id="alertsCountNav">0</span>)
-            </button>
-        </div>
-
         <div id="welcomeMessage" style="text-align: center; color: #666; margin: 15px 0; font-size: 14px;">
             👋 Welcome! Browse our collection below or search for specific cards
         </div>
@@ -1320,7 +1316,12 @@
                 <!-- Favorites cards will be dynamically inserted here -->
             </div>
 
-            <div style="padding: 40px; background: #fff; text-align: center; color: #666; border-radius: 8px;" id="emptyFavoritesMessage">
+            <div style="padding: 40px; background: #fff; text-align: center; color: #666; border-radius: 8px; display: none;" id="loadingFavoritesMessage">
+                <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
+                <div>Loading your favorites...</div>
+            </div>
+
+            <div style="padding: 40px; background: #fff; text-align: center; color: #666; border-radius: 8px; display: none;" id="emptyFavoritesMessage">
                 💔 No favorites yet. Start adding cards you love!
             </div>
         </div>
@@ -1406,7 +1407,12 @@
                 <!-- Price alerts will be dynamically inserted here -->
             </div>
 
-            <div style="padding: 40px; background: #fff; text-align: center; color: #666; border-radius: 8px;" id="emptyAlertsMessage">
+            <div style="padding: 40px; background: #fff; text-align: center; color: #666; border-radius: 8px; display: none;" id="loadingAlertsMessage">
+                <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
+                <div>Loading your price alerts...</div>
+            </div>
+
+            <div style="padding: 40px; background: #fff; text-align: center; color: #666; border-radius: 8px; display: none;" id="emptyAlertsMessage">
                 🔕 No price alerts yet. Start tracking card prices!
             </div>
         </div>
@@ -2126,34 +2132,82 @@
         // Load favorites from database
         async function loadFavoritesFromDB() {
             try {
+                console.log('📥 Loading favorites from database...');
                 const response = await fetch(`${API_BASE_URL}/favorites?userId=${USER_ID}`);
                 const result = await response.json();
 
-                if (result.success) {
-                    favoriteCards = result.data.map(fav => ({
-                        id: fav.cardId,
-                        name: fav.name,
-                        image: fav.image,
-                        price: fav.price,
-                        set: fav.set,
-                        rarity: fav.rarity,
-                        number: fav.number
-                    }));
+                console.log('✅ Loaded favorites from DB:', result);
+                console.log(`   Found ${result.data.length} favorite(s)`);
+
+                if (result.success && result.data.length > 0) {
+                    console.log('🔄 Fetching card details for each favorite...');
+
+                    // Get detailed card info for each favorite
+                    const cardDetailsPromises = result.data.map(async (fav, index) => {
+                        try {
+                            console.log(`   Fetching card ${index + 1}/${result.data.length}: ${fav.cardId}`);
+                            const cardResponse = await fetch(`${API_BASE_URL}/cards?q=id:${fav.cardId}`);
+                            const cardData = await cardResponse.json();
+
+                            console.log(`   Response for ${fav.cardId}:`, cardData);
+
+                            if (cardData.data && cardData.data.length > 0) {
+                                const card = cardData.data[0];
+                                // Get price from tcgplayer
+                                let basePrice = 10;
+                                if (card.tcgplayer && card.tcgplayer.prices) {
+                                    const prices = card.tcgplayer.prices;
+                                    const type = Object.keys(prices)[0];
+                                    if (type && prices[type].market) {
+                                        basePrice = prices[type].market;
+                                    }
+                                }
+
+                                const cardInfo = {
+                                    id: card.id,
+                                    name: card.name,
+                                    image: card.images.small,
+                                    price: basePrice,
+                                    set: card.set ? card.set.name : 'N/A',
+                                    rarity: card.rarity || 'N/A',
+                                    number: card.number || 'N/A'
+                                };
+                                console.log(`   ✅ Card loaded: ${cardInfo.name}`);
+                                return cardInfo;
+                            } else {
+                                console.warn(`   ⚠️ No card data found for ${fav.cardId}`);
+                            }
+                            return null;
+                        } catch (error) {
+                            console.error(`   ❌ Error loading card ${fav.cardId}:`, error);
+                            return null;
+                        }
+                    });
+
+                    const cards = await Promise.all(cardDetailsPromises);
+                    favoriteCards = cards.filter(card => card !== null);
+
+                    console.log(`✅ Successfully loaded ${favoriteCards.length} card(s) with details`);
+                    console.log('   Cards:', favoriteCards);
+                    updateFavoritesBadge();
+                } else {
+                    console.log('ℹ️ No favorites found');
+                    favoriteCards = [];
                     updateFavoritesBadge();
                 }
             } catch (error) {
-                console.error('Error loading favorites:', error);
+                console.error('❌ Error loading favorites:', error);
+                favoriteCards = [];
+                updateFavoritesBadge();
             }
         }
 
         function updateFavoritesBadge() {
             const favoritesBadge = document.getElementById('favoritesBadge');
             const favoritesCount = document.getElementById('favoritesCount');
-            const favoritesCountNav = document.getElementById('favoritesCountNav');
             const count = favoriteCards.length;
 
             favoritesCount.textContent = count;
-            if (favoritesCountNav) favoritesCountNav.textContent = count;
             favoritesBadge.style.display = 'block'; // Always show the badge
         }
 
@@ -2178,25 +2232,10 @@
                         updateFavoriteButton();
                     }
                 } else {
-                    // Add to favorites via API
-                    let basePrice = 10;
-                    if (currentCard.tcgplayer && currentCard.tcgplayer.prices) {
-                        const prices = currentCard.tcgplayer.prices;
-                        const type = Object.keys(prices)[0];
-                        if (type && prices[type].market) {
-                            basePrice = prices[type].market;
-                        }
-                    }
-
+                    // Add to favorites via API - only send userId and cardId
                     const favoriteData = {
                         userId: USER_ID,
-                        cardId: currentCard.id,
-                        name: currentCard.name,
-                        image: currentCard.images.small,
-                        price: basePrice,
-                        set: currentCard.set ? currentCard.set.name : 'N/A',
-                        rarity: currentCard.rarity || 'N/A',
-                        number: currentCard.number || 'N/A'
+                        cardId: currentCard.id
                     };
 
                     const response = await fetch(`${API_BASE_URL}/favorites`, {
@@ -2210,6 +2249,17 @@
                     const result = await response.json();
 
                     if (result.success) {
+                        // Get price for local storage
+                        let basePrice = 10;
+                        if (currentCard.tcgplayer && currentCard.tcgplayer.prices) {
+                            const prices = currentCard.tcgplayer.prices;
+                            const type = Object.keys(prices)[0];
+                            if (type && prices[type].market) {
+                                basePrice = prices[type].market;
+                            }
+                        }
+
+                        // Add to local array with full details
                         favoriteCards.push({
                             id: currentCard.id,
                             name: currentCard.name,
@@ -2222,7 +2272,7 @@
                         alert('💖 Added to favorites!');
                         updateFavoritesBadge();
                         updateFavoriteButton();
-                    } else if (response.status === 409) {
+                    } else {
                         alert('Card is already in your favorites!');
                     }
                 }
@@ -2256,10 +2306,13 @@
             // Show favorites page
             document.getElementById('favoritesPage').style.display = 'block';
 
+            // Show loading state
+            renderFavorites(true);
+
             // Reload favorites from database before rendering
             await loadFavoritesFromDB();
 
-            // Render favorites
+            // Render favorites with data
             renderFavorites();
         }
 
@@ -2271,17 +2324,29 @@
             document.getElementById('favoritesPage').style.display = 'none';
         }
 
-        function renderFavorites() {
+        function renderFavorites(isLoading = false) {
             const container = document.getElementById('favoritesContainer');
             const emptyMessage = document.getElementById('emptyFavoritesMessage');
+            const loadingMessage = document.getElementById('loadingFavoritesMessage');
+
+            console.log('Rendering favorites, total count:', favoriteCards.length);
+            console.log('Favorite cards:', favoriteCards);
+
+            // Hide all messages first
+            emptyMessage.style.display = 'none';
+            loadingMessage.style.display = 'none';
+
+            if (isLoading) {
+                container.innerHTML = '';
+                loadingMessage.style.display = 'block';
+                return;
+            }
 
             if (favoriteCards.length === 0) {
                 container.innerHTML = '';
                 emptyMessage.style.display = 'block';
                 return;
             }
-
-            emptyMessage.style.display = 'none';
 
             container.innerHTML = favoriteCards.map((card, index) =>
                 '<div class="card-item" style="position: relative;">' +
@@ -2610,11 +2675,9 @@
         function updatePriceTrackingBadge() {
             const badge = document.getElementById('priceTrackingBadge');
             const count = document.getElementById('alertsCount');
-            const alertsCountNav = document.getElementById('alertsCountNav');
             const activeAlerts = priceAlerts.filter(a => a.isActive).length;
 
             count.textContent = activeAlerts;
-            if (alertsCountNav) alertsCountNav.textContent = activeAlerts;
             badge.style.display = 'block'; // Always show the badge
         }
 
@@ -2679,7 +2742,9 @@
                 condition: condition,
                 set: currentCard.set ? currentCard.set.name : 'N/A',
                 rarity: currentCard.rarity || 'N/A',
-                number: currentCard.number || 'N/A'
+                number: currentCard.number || 'N/A',
+                isActive: true,
+                triggered: false
             };
 
             try {
@@ -2717,10 +2782,13 @@
             // Show price tracking page
             document.getElementById('priceTrackingPage').style.display = 'block';
 
+            // Show loading state
+            renderPriceAlerts(true);
+
             // Reload alerts from database
             await loadPriceAlertsFromDB();
 
-            // Render alerts
+            // Render alerts with data
             renderPriceAlerts();
         }
 
@@ -2729,17 +2797,26 @@
             document.getElementById('priceTrackingPage').style.display = 'none';
         }
 
-        function renderPriceAlerts() {
+        function renderPriceAlerts(isLoading = false) {
             const container = document.getElementById('alertsContainer');
             const emptyMessage = document.getElementById('emptyAlertsMessage');
+            const loadingMessage = document.getElementById('loadingAlertsMessage');
+
+            // Hide all messages first
+            emptyMessage.style.display = 'none';
+            loadingMessage.style.display = 'none';
+
+            if (isLoading) {
+                container.innerHTML = '';
+                loadingMessage.style.display = 'block';
+                return;
+            }
 
             if (priceAlerts.length === 0) {
                 container.innerHTML = '';
                 emptyMessage.style.display = 'block';
                 return;
             }
-
-            emptyMessage.style.display = 'none';
 
             container.innerHTML = priceAlerts.map(alert => `
                 <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; gap: 20px; align-items: center;">
@@ -2768,10 +2845,10 @@
                         </div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <button onclick="toggleAlertStatus('${alert._id}', ${!alert.isActive})" style="padding: 8px 16px; background: ${alert.isActive ? '#f59e0b' : '#059669'}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                        <button onclick="toggleAlertStatus('${alert.id}', ${!alert.isActive})" style="padding: 8px 16px; background: ${alert.isActive ? '#f59e0b' : '#059669'}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
                             ${alert.isActive ? '⏸ Pause' : '▶ Resume'}
                         </button>
-                        <button onclick="removeAlert('${alert._id}')" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                        <button onclick="removeAlert('${alert.id}')" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
                             🗑 Delete
                         </button>
                     </div>
@@ -2793,7 +2870,7 @@
 
                 if (result.success) {
                     // Update local array
-                    const index = priceAlerts.findIndex(a => a._id === alertId);
+                    const index = priceAlerts.findIndex(a => a.id === alertId);
                     if (index !== -1) {
                         priceAlerts[index] = result.data;
                     }
@@ -2820,7 +2897,7 @@
 
                 if (result.success) {
                     // Remove from local array
-                    priceAlerts = priceAlerts.filter(a => a._id !== alertId);
+                    priceAlerts = priceAlerts.filter(a => a.id !== alertId);
                     renderPriceAlerts();
                     updatePriceTrackingBadge();
                 } else {
