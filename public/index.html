@@ -1066,6 +1066,17 @@
             <button onclick="searchCards(1)">🔍 Search</button>
             <button class="clear-cache-btn" onclick="clearCache()">🗑️ Clear Cache</button>
         </div>
+
+        <!-- Quick Navigation Buttons -->
+        <div style="display: flex; gap: 10px; justify-content: center; margin: 15px 0;">
+            <button onclick="openFavorites()" style="padding: 10px 24px; background: #e11d48; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(225, 29, 72, 0.3); transition: all 0.3s;">
+                ❤️ My Favorites (<span id="favoritesCountNav">0</span>)
+            </button>
+            <button onclick="openPriceTracking()" style="padding: 10px 24px; background: #059669; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3); transition: all 0.3s;">
+                🔔 My Price Alerts (<span id="alertsCountNav">0</span>)
+            </button>
+        </div>
+
         <div id="welcomeMessage" style="text-align: center; color: #666; margin: 15px 0; font-size: 14px;">
             👋 Welcome! Browse our collection below or search for specific cards
         </div>
@@ -2138,10 +2149,12 @@
         function updateFavoritesBadge() {
             const favoritesBadge = document.getElementById('favoritesBadge');
             const favoritesCount = document.getElementById('favoritesCount');
+            const favoritesCountNav = document.getElementById('favoritesCountNav');
             const count = favoriteCards.length;
 
             favoritesCount.textContent = count;
-            favoritesBadge.style.display = count > 0 ? 'block' : 'none';
+            if (favoritesCountNav) favoritesCountNav.textContent = count;
+            favoritesBadge.style.display = 'block'; // Always show the badge
         }
 
         async function toggleFavorite() {
@@ -2568,7 +2581,8 @@
         // Initialize cart badge on page load
         updateCartBadge();
 
-        // Initialize favorites from database on page load
+        // Initialize favorites badge and load from database
+        updateFavoritesBadge(); // Show badge immediately
         loadFavoritesFromDB();
 
         // Load random featured cards on page load
@@ -2596,10 +2610,12 @@
         function updatePriceTrackingBadge() {
             const badge = document.getElementById('priceTrackingBadge');
             const count = document.getElementById('alertsCount');
+            const alertsCountNav = document.getElementById('alertsCountNav');
             const activeAlerts = priceAlerts.filter(a => a.isActive).length;
 
             count.textContent = activeAlerts;
-            badge.style.display = activeAlerts > 0 ? 'block' : 'none';
+            if (alertsCountNav) alertsCountNav.textContent = activeAlerts;
+            badge.style.display = 'block'; // Always show the badge
         }
 
         function openPriceAlertModal() {
@@ -2816,7 +2832,8 @@
             }
         }
 
-        // Initialize price alerts on page load
+        // Initialize price alerts badge and load from database
+        updatePriceTrackingBadge(); // Show badge immediately
         loadPriceAlertsFromDB();
     </script>
 </body>
